@@ -136,6 +136,7 @@
             <th>Statut</th>
             <th class="num">Total</th>
             <th id="catHeaders"></th>
+            <th>📷</th>
             <th>Culte</th>
             <th>Observations</th>
             <th>Action</th>
@@ -152,6 +153,12 @@
     <p style="font-size:.85rem; color:#94a3b8; margin-bottom:14px;">Suppression irréversible de toutes les données de dénombrement (tests inclus).</p>
     <button onclick="confirmResetAll()" style="background:#ef4444; color:#fff; border:none; padding:12px 24px; border-radius:10px; font-weight:700; font-size:.95rem; cursor:pointer;">🗑️ Effacer toutes les données</button>
   </div>
+</div>
+
+<!-- MODAL PHOTO PLEIN ECRAN -->
+<div id="photoModal" style="position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:400;padding:20px;" onclick="document.getElementById('photoModal').style.display='none'">
+  <img id="photoModalImg" src="" style="max-width:100%;max-height:90vh;border-radius:12px;object-fit:contain;">
+  <button style="position:absolute;top:16px;right:16px;background:#ef4444;color:#fff;border:none;width:40px;height:40px;border-radius:50%;font-size:1.3rem;cursor:pointer;" onclick="document.getElementById('photoModal').style.display='none'">✕</button>
 </div>
 
 <!-- MODAL RESET ADMIN -->
@@ -199,6 +206,17 @@
     <input type="text" id="edit-themeMessage" style="width:100%;padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:1rem;margin-bottom:8px;">
     <label style="display:block;font-size:.8rem;color:#94a3b8;margin-bottom:4px;">Références bibliques</label>
     <input type="text" id="edit-referencesBibliques" style="width:100%;padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:1rem;margin-bottom:8px;">
+    <label style="display:block;font-size:.8rem;color:#94a3b8;margin-bottom:4px;">📷 Photo du culte <span style="font-size:.75rem;">(optionnel)</span></label>
+    <div id="edit-photoPreview" style="display:none;margin-bottom:8px;">
+      <img id="edit-photoImg" src="" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;border:2px solid #334155;">
+      <button onclick="removeEditPhoto()" style="margin-top:6px;background:#ef4444;color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:.8rem;cursor:pointer;">🗑️ Supprimer</button>
+    </div>
+    <div id="edit-photoBtn" style="margin-bottom:14px;">
+      <label for="edit-photoInput" style="display:inline-block;background:#334155;color:#f1f5f9;padding:8px 16px;border-radius:10px;cursor:pointer;font-size:.85rem;font-weight:600;">
+        📷 Choisir une photo
+      </label>
+      <input type="file" id="edit-photoInput" accept="image/*" style="display:none;" onchange="handleEditPhoto(event)">
+    </div>
     <label style="display:block;font-size:.8rem;color:#94a3b8;margin-bottom:4px;">Observations</label>
     <textarea id="edit-observations" rows="3" style="width:100%;padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:1rem;font-family:inherit;resize:vertical;margin-bottom:16px;"></textarea>
 
@@ -287,7 +305,8 @@ function loadDays(){
 
         referencesBibliques: d.referencesBibliques || '',
         invitesH: d.invitesH || 0,
-        invitesF: d.invitesF || 0
+        invitesF: d.invitesF || 0,
+        photo: d.photo || null
       });
     });
     allDays.sort((a,b)=> a.date.localeCompare(b.date));
@@ -448,11 +467,16 @@ function renderTable(days){
       (d.invitesH || d.invitesF) ? `👤 Dont invités: ${d.invitesH||0} H / ${d.invitesF||0} F` : ''
     ].filter(Boolean).join('<br>');
 
+    const photoCell = d.photo
+      ? `<td><img src="${d.photo}" onclick="openPhoto('${d.date}')" style="width:54px;height:54px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid #6366f1;" title="Cliquer pour agrandir"></td>`
+      : `<td style="color:#334155;text-align:center;">—</td>`;
+
     return `<tr>
       <td><b>${fmtDate(d.date)}</b><br><span style="color:var(--muted); font-size:.75rem;">${d.label||''}</span></td>
       <td>${statusLabel}</td>
       <td class="num">${d.total}</td>
       ${catCells}
+      ${photoCell}
       <td class="obs-cell">${culteInfo || '—'}</td>
       <td class="obs-cell">${d.observations || '—'}</td>
       <td>
@@ -470,6 +494,47 @@ function renderTable(days){
 function deleteDay(dateKey){
   if(!confirm(`Supprimer définitivement le dénombrement du ${fmtDate(dateKey)} ?\n\nCette action est irréversible.`)) return;
   db.ref(`${ROOT}/days/${dateKey}`).remove();
+}
+
+/* ================== PHOTO ================== */
+let editPhotoBase64 = null;
+
+function openPhoto(dateKey){
+  const day = allDays.find(d=>d.date===dateKey);
+  if(!day || !day.photo) return;
+  document.getElementById('photoModalImg').src = day.photo;
+  document.getElementById('photoModal').style.display = 'flex';
+}
+
+function handleEditPhoto(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      const MAX = 800;
+      if(w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
+      if(h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      editPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+      document.getElementById('edit-photoImg').src = editPhotoBase64;
+      document.getElementById('edit-photoPreview').style.display = 'block';
+      document.getElementById('edit-photoBtn').style.display = 'none';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeEditPhoto(){
+  editPhotoBase64 = 'REMOVE';
+  document.getElementById('edit-photoPreview').style.display = 'none';
+  document.getElementById('edit-photoBtn').style.display = 'block';
+  document.getElementById('edit-photoInput').value = '';
 }
 
 /* ================== RESET ADMIN ================== */
@@ -527,6 +592,17 @@ function openEditDay(dateKey){
   document.getElementById('edit-referencesBibliques').value = day.referencesBibliques || '';
   document.getElementById('edit-observations').value = day.observations || '';
 
+  // Photo
+  editPhotoBase64 = null;
+  if(day.photo){
+    document.getElementById('edit-photoImg').src = day.photo;
+    document.getElementById('edit-photoPreview').style.display = 'block';
+    document.getElementById('edit-photoBtn').style.display = 'none';
+  } else {
+    document.getElementById('edit-photoPreview').style.display = 'none';
+    document.getElementById('edit-photoBtn').style.display = 'block';
+  }
+
   document.getElementById('editDayModal').style.display = 'flex';
 }
 
@@ -552,6 +628,12 @@ function saveEditDay(){
     observations: document.getElementById('edit-observations').value.trim(),
     lastEditedAt: Date.now()
   });
+  // Gérer la photo séparément
+  if(editPhotoBase64 === 'REMOVE'){
+    db.ref(`${ROOT}/days/${editingDateKey}/photo`).remove();
+  } else if(editPhotoBase64){
+    db.ref(`${ROOT}/days/${editingDateKey}/photo`).set(editPhotoBase64);
+  }
 
   document.getElementById('editDayModal').style.display = 'none';
 }
