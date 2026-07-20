@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARR - Statistiques de Dénombrement</title>
+<title>ARR - Statistiques</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -196,10 +196,10 @@
 <!-- LOGIN -->
 <div id="loginScreen">
   <div class="box">
-    <img id="loginLogo" src="" alt="Logo ARR" style="width:80px; height:80px; object-fit:contain; border-radius:12px; background:#fff; padding:6px; margin-bottom:10px;">
+    <img id="loginLogo" src="" alt="Logo ARR" style="width:80px;height:80px;object-fit:contain;border-radius:12px;background:#fff;padding:6px;margin-bottom:12px;">
     <h2>Statistiques ARR</h2>
     <p>Accès réservé au pasteur et au responsable du dénombrement.</p>
-    <input type="password" id="accessCode" placeholder="Code d'accès" maxlength="20">
+    <input type="password" id="accessCode" placeholder="Code d'accès" maxlength="30">
     <button class="btn" onclick="checkAccess()">Accéder aux statistiques</button>
     <div class="error" id="loginError"></div>
   </div>
@@ -215,10 +215,18 @@
     </div>
   </header>
 
-  <div class="summary-cards" id="summaryCards"></div>
+  <!-- NAVIGATION -->
+  <div class="nav-bar">
+    <button class="nav-btn active" onclick="showSection('dashboard')" id="nav-dashboard">📊 Tableau de bord</button>
+    <button class="nav-btn" onclick="showSection('historique')" id="nav-historique">📋 Historique</button>
+    <button class="nav-btn" onclick="showSection('analyses')" id="nav-analyses">📈 Analyses</button>
+    <button class="nav-btn" onclick="showSection('export')" id="nav-export">⬇️ Export</button>
+    <button class="nav-btn" onclick="showSection('parametres')" id="nav-parametres">⚙️ Paramètres</button>
+  </div>
 
+  <!-- FILTRE GLOBAL -->
   <div class="filters">
-    <label style="font-size:.85rem; color:var(--muted);">Période :</label>
+    <label>Période :</label>
     <select id="periodFilter" onchange="applyFilter()">
       <option value="30">30 derniers jours</option>
       <option value="90">3 derniers mois</option>
@@ -228,48 +236,129 @@
     </select>
   </div>
 
-  <div class="chart-card">
-    <h3>Évolution de l'affluence totale</h3>
-    <div class="chart-wrap"><canvas id="evolutionChart"></canvas></div>
-  </div>
-
-  <div class="chart-card">
-    <h3>Répartition par catégorie (cumul de la période)</h3>
-    <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
-  </div>
-
-  <div class="chart-card">
-    <h3>Invités au fil du temps (Hommes + Femmes)</h3>
-    <div class="chart-wrap"><canvas id="visitorsChart"></canvas></div>
-  </div>
-
-  <div class="table-card">
-    <h3 style="margin-bottom:14px;">Détail par jour de culte</h3>
-    <div style="overflow-x:auto;">
-      <table id="dataTable">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Statut</th>
-            <th class="num">Total</th>
-            <th id="catHeaders"></th>
-            <th>📷</th>
-            <th>Culte</th>
-            <th>Observations</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
+  <!-- ===== SECTION DASHBOARD ===== -->
+  <div class="section active" id="section-dashboard">
+    <div class="summary-cards" id="summaryCards"></div>
+    <div class="stats-grid" id="highlightsGrid"></div>
+    <div class="chart-card">
+      <h3>Évolution de l'affluence totale</h3>
+      <div class="chart-wrap"><canvas id="evolutionChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Répartition par catégorie (cumul période)</h3>
+      <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Invités au fil du temps</h3>
+      <div class="chart-wrap"><canvas id="visitorsChart"></canvas></div>
     </div>
   </div>
 
-  <!-- ZONE ADMIN -->
-  <div class="admin-zone">
-    <h3>⚠️ Zone Admin</h3>
-    <p>Suppression irréversible de toutes les données de dénombrement (tests inclus).</p>
-    <button class="btn-red" onclick="confirmResetAll()">🗑️ Effacer toutes les données</button>
+  <!-- ===== SECTION HISTORIQUE ===== -->
+  <div class="section" id="section-historique">
+    <div class="table-card">
+      <h3 style="margin-bottom:14px;">Détail par jour de culte</h3>
+      <div style="overflow-x:auto;">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Statut</th>
+              <th class="num">Total</th>
+              <th id="catHeaders"></th>
+              <th>📷</th>
+              <th>Culte</th>
+              <th>Observations</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
+
+  <!-- ===== SECTION ANALYSES ===== -->
+  <div class="section" id="section-analyses">
+    <div class="chart-card">
+      <h3>📈 Progression culte par culte (%)</h3>
+      <div class="chart-wrap"><canvas id="progressionChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>🥧 Répartition en % par catégorie</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="chart-wrap" style="height:220px;"><canvas id="pieChart"></canvas></div>
+        <div id="pieLegende" style="display:flex;flex-direction:column;justify-content:center;gap:8px;padding:10px;"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>〰️ Tendance générale (moyenne mobile 3 cultes)</h3>
+      <div class="chart-wrap"><canvas id="tendanceChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>⛪ vs 📚 Culte Principal vs École du Dimanche</h3>
+      <div class="chart-wrap"><canvas id="compareChart"></canvas></div>
+    </div>
+    <div class="stats-grid" id="analysesHighlights"></div>
+  </div>
+
+  <!-- ===== SECTION EXPORT ===== -->
+  <div class="section" id="section-export">
+    <div class="param-card">
+      <h3>⬇️ Exporter les données</h3>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px;">Les exports utilisent la période sélectionnée en haut.</p>
+      <div class="export-bar">
+        <button class="export-btn export-pdf" onclick="exportPDF()">📄 Export PDF</button>
+        <button class="export-btn export-csv" onclick="exportCSV()">📊 Export CSV</button>
+        <button class="export-btn export-excel" onclick="exportExcel()">📗 Export Excel</button>
+      </div>
+      <div id="exportStatus" style="color:var(--gold2);font-size:.85rem;margin-top:10px;min-height:1.2em;"></div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION PARAMETRES ===== -->
+  <div class="section" id="section-parametres">
+    <div class="param-card">
+      <h3>🔑 Modifier le code d'accès</h3>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px;">Le nouveau code sera actif immédiatement et sauvegardé dans Firebase.</p>
+      <label style="display:block;font-size:.75rem;color:var(--gold2);margin-bottom:4px;">Code actuel</label>
+      <input type="password" id="paramOldCode" placeholder="Saisir le code actuel" style="margin-bottom:10px;">
+      <label style="display:block;font-size:.75rem;color:var(--gold2);margin-bottom:4px;">Nouveau code</label>
+      <input type="password" id="paramNewCode" placeholder="Nouveau code (min. 6 caractères)" style="margin-bottom:8px;">
+      <input type="password" id="paramNewCode2" placeholder="Confirmer le nouveau code" style="margin-bottom:6px;">
+      <div id="paramCodeError" style="color:#ff6b6b;font-size:.8rem;min-height:1.2em;margin-bottom:10px;"></div>
+      <button class="btn-gold" onclick="changeAccessCode()">✅ Mettre à jour le code</button>
+    </div>
+
+    <div class="param-card">
+      <h3>ℹ️ Informations système</h3>
+      <div style="display:grid;gap:8px;">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(212,175,55,.1);">
+          <span style="color:var(--muted);font-size:.85rem;">Application</span>
+          <span style="color:var(--gold2);font-size:.85rem;font-weight:600;">ARR Dénombrement v2.0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(212,175,55,.1);">
+          <span style="color:var(--muted);font-size:.85rem;">Base de données</span>
+          <span style="color:var(--gold2);font-size:.85rem;font-weight:600;">Firebase assemblee-royale</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(212,175,55,.1);">
+          <span style="color:var(--muted);font-size:.85rem;">Total cultes enregistrés</span>
+          <span id="paramTotalCultes" style="color:var(--gold);font-size:.85rem;font-weight:700;">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;">
+          <span style="color:var(--muted);font-size:.85rem;">Connexion Firebase</span>
+          <span id="paramConnStatus" style="font-size:.85rem;font-weight:700;">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-zone">
+      <h3>⚠️ Zone Admin</h3>
+      <p>Suppression irréversible de toutes les données de dénombrement (tests inclus).</p>
+      <button class="btn-red" onclick="confirmResetAll()">🗑️ Effacer toutes les données</button>
+    </div>
+  </div>
+
 </div>
 
 <!-- MODAL PHOTO PLEIN ECRAN -->
@@ -342,6 +431,7 @@
     </div>
   </div>
 </div>
+
 
 <script>
 /* ================== CONFIG ================== */
@@ -1054,16 +1144,16 @@ function exportExcel(){
   const best = closed.length?closed.reduce((a,b)=>a.total>b.total?a:b):null;
   const worst = closed.length?closed.reduce((a,b)=>a.total<b.total?a:b):null;
   const resume = [
-    ['Indicateur','Valeur'],
-    ['Période','Tout l'historique'],
-    ['Cultes enregistrés',closed.length],
-    ['Affluence cumulée',totals.reduce((a,b)=>a+b,0)],
-    ['Moyenne par culte',avg],
-    ['Record de présence',best?`${best.total} (${fmtDate(best.date)})`:'—'],
-    ['Plus faible affluence',worst?`${worst.total} (${fmtDate(worst.date)})`:'—'],
-    ['Total invités',closed.reduce((a,d)=>a+(d.invitesH||0)+(d.invitesF||0),0)],
-    ['',''],
-    ['Généré le',new Date().toLocaleString('fr-FR')],
+    ["Indicateur","Valeur"],
+    ["Période","Tout l'historique"],
+    ["Cultes enregistrés",closed.length],
+    ["Affluence cumulée",totals.reduce((a,b)=>a+b,0)],
+    ["Moyenne par culte",avg],
+    ["Record de présence",best?`${best.total} (${fmtDate(best.date)})`:"—"],
+    ["Plus faible affluence",worst?`${worst.total} (${fmtDate(worst.date)})`:"—"],
+    ["Total invités",closed.reduce((a,d)=>a+(d.invitesH||0)+(d.invitesF||0),0)],
+    ["",""],
+    ["Généré le",new Date().toLocaleString("fr-FR")],
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(resume);
   ws2['!cols']=[{wch:30},{wch:30}];
