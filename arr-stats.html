@@ -845,9 +845,6 @@ function renderAnalyses(){
   const sortedCats = Object.entries(categories).sort((a,b)=>(a[1].order||0)-(b[1].order||0));
 
   // 1. Progression % culte par culte
-  const progressions = totals.map((t,i)=> i===0 ? 0 : prev => {
-    const p = totals[i-1]; return p>0 ? Math.round(((t-p)/p)*100) : 0;
-  }(totals[i-1]));
   const progressData = totals.map((t,i)=> i===0 ? 0 : (totals[i-1]>0 ? Math.round(((t-totals[i-1])/totals[i-1])*100) : 0));
   const progressColors = progressData.map(v=>v>=0?'rgba(39,174,96,.7)':'rgba(192,57,43,.7)');
 
@@ -859,7 +856,7 @@ function renderAnalyses(){
       plugins:{legend:{labels:{color:'#FFF8F0'}},tooltip:{callbacks:{label:ctx=>`${ctx.raw>0?'+':''}${ctx.raw}%`}}},
       scales:{x:{ticks:{color:'#c9a87a'},grid:{color:'rgba(212,175,55,.1)'}},
               y:{ticks:{color:'#c9a87a',callback:v=>`${v>0?'+':''}${v}%`},grid:{color:'rgba(212,175,55,.1)'},
-                 plugins:{annotation:{annotations:{zero:{type:'line',yMin:0,yMax:0,borderColor:'rgba(212,175,55,.5)',borderWidth:1}}}}}}
+                 }}
     }
   });
 
