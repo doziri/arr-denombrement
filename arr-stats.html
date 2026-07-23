@@ -78,13 +78,15 @@
   .chart-card h3{font-size:.95rem;margin-bottom:14px;color:var(--gold2);font-weight:700;}
   .chart-wrap{position:relative;height:260px;}
 
-  table{width:100%;border-collapse:collapse;font-size:.82rem;}
-  th,td{padding:10px 8px;text-align:left;border-bottom:1px solid rgba(212,175,55,.1);}
-  th{color:var(--gold2);font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;
-    background:rgba(139,0,0,.3);}
+  table{width:100%;border-collapse:collapse;font-size:.8rem;table-layout:auto;}
+  th,td{padding:8px 6px;text-align:left;border-bottom:1px solid rgba(212,175,55,.1);white-space:nowrap;}
+  th{color:var(--gold2);font-weight:700;font-size:.68rem;text-transform:uppercase;letter-spacing:.3px;
+    background:rgba(139,0,0,.4);position:sticky;top:0;z-index:1;}
   tr:hover{background:rgba(212,175,55,.05);}
-  td.num{text-align:right;font-weight:700;color:var(--gold);}
-  .obs-cell{color:var(--muted);font-size:.75rem;max-width:200px;line-height:1.4;}
+  td.num{text-align:center;font-weight:700;color:var(--gold);font-size:.9rem;}
+  .obs-cell{color:var(--muted);font-size:.72rem;max-width:160px;white-space:normal;line-height:1.4;}
+  .culte-cell{color:var(--muted);font-size:.72rem;max-width:160px;white-space:normal;line-height:1.5;}
+  td:first-child{white-space:normal;min-width:80px;}
 
   .table-card{
     background:linear-gradient(145deg,var(--card),var(--card2));
@@ -505,7 +507,7 @@ function loadDays(){
       allDays.push({
         date: d.date || child.key,
         status: d.status || 'closed',
-        total: d.total !== undefined ? d.total : Object.values(d.counts||{}).reduce((a,b)=>a+(b||0),0),
+        total: (d.total !== undefined && d.total > 0) ? d.total : Object.values(d.counts||{}).reduce((a,b)=>a+(b||0),0),
         counts: d.counts || {},
         observations: d.observations || '',
         label: d.label || d.date,
@@ -552,7 +554,7 @@ function applyFilter(){
 
 /* ================== SUMMARY ================== */
 function renderSummary(days){
-  const closedDays = days.filter(d=>d.status==='closed' || d.total>0);
+  const closedDays = days.filter(d=>d.total>0 || d.status==='closed' || d.status==='open');
   const totals = closedDays.map(d=>d.total);
   const sum = totals.reduce((a,b)=>a+b,0);
   const avg = totals.length ? Math.round(sum/totals.length) : 0;
@@ -672,17 +674,17 @@ function renderVisitorsChart(days){
 function renderTable(days){
   const sortedCats = Object.entries(categories).sort((a,b)=>(a[1].order||0)-(b[1].order||0));
   const tbody = document.getElementById('tableBody');
-  const reversed = [...days].reverse();
+  const reversed = [...days].filter(d=> !(d.status==='open' && d.total===0)).reverse();
   tbody.innerHTML = reversed.map(d=>{
     const catCells = sortedCats.map(([id])=> `<td class="num">${d.counts[id]||0}</td>`).join('');
-    const statusLabel = d.status==='open' ? '<span class="status-tag open">En cours</span>' : '<span class="status-tag closed">Clôturé</span>';
+    const statusLabel = d.status==='open' ? '<span class="status-tag open">🟢 En cours</span>' : '<span class="status-tag closed">✅ Clôturé</span>';
     const culteInfo = [
-      d.heureFin ? `⏰ Fin: ${d.heureFin}` : '',
-      d.dirigeant ? `🎙 Dirigeant: ${d.dirigeant}` : '',
-      d.predicateur ? `📖 Prédicateur: ${d.predicateur}` : '',
-      d.themeMessage ? `✝️ Thème: ${d.themeMessage}` : '',
-      d.referencesBibliques ? `📜 Réf: ${d.referencesBibliques}` : '',
-      (d.invitesH || d.invitesF) ? `👤 Dont invités: ${d.invitesH||0} H / ${d.invitesF||0} F` : ''
+      d.heureFin ? `⏰ <b>${d.heureFin}</b>` : '',
+      d.dirigeant ? `🎙 ${d.dirigeant}` : '',
+      d.predicateur ? `📖 ${d.predicateur}` : '',
+      d.themeMessage ? `✝️ <i>${d.themeMessage}</i>` : '',
+      d.referencesBibliques ? `📜 ${d.referencesBibliques}` : '',
+      (d.invitesH || d.invitesF) ? `👤 ${d.invitesH||0}H / ${d.invitesF||0}F` : ''
     ].filter(Boolean).join('<br>');
 
     const photoCell = d.photo
@@ -695,11 +697,11 @@ function renderTable(days){
       <td class="num">${d.total}</td>
       ${catCells}
       ${photoCell}
-      <td class="obs-cell">${culteInfo || '—'}</td>
+      <td class="culte-cell">${culteInfo || '—'}</td>
       <td class="obs-cell">${d.observations || '—'}</td>
       <td>
-        <button onclick="openEditDay('${d.date}')" style="background:linear-gradient(135deg,#D4AF37,#F5D76E);color:#5c0000;border:none;padding:6px 10px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;margin-bottom:4px;display:block;width:100%;">✏️ Modifier</button>
-        <button onclick="deleteDay('${d.date}')" style="background:linear-gradient(135deg,#7b0000,#c0392b);color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;display:block;width:100%;">🗑 Supprimer</button>
+        <button onclick="openEditDay('${d.date}')" style="background:linear-gradient(135deg,#D4AF37,#F5D76E);color:#5c0000;border:none;padding:5px 8px;border-radius:6px;font-size:.7rem;font-weight:700;cursor:pointer;margin-bottom:3px;display:block;width:100%;white-space:nowrap;">✏️ Modifier</button>
+        <button onclick="deleteDay('${d.date}')" style="background:linear-gradient(135deg,#7b0000,#c0392b);color:#fff;border:none;padding:5px 8px;border-radius:6px;font-size:.7rem;font-weight:700;cursor:pointer;display:block;width:100%;white-space:nowrap;">🗑 Suppr.</button>
       </td>
     </tr>`;
   }).join('');
@@ -867,7 +869,7 @@ function showSection(name){
 
 /* ================== HIGHLIGHTS ================== */
 function renderHighlights(days){
-  const closed = days.filter(d=>d.status==='closed'||d.total>0);
+  const closed = days.filter(d=>d.total>0||d.status==='closed'||d.status==='open');
   if(closed.length===0){ document.getElementById('highlightsGrid').innerHTML=''; return; }
   const totals = closed.map(d=>d.total);
   const last = closed[closed.length-1];
