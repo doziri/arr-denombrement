@@ -503,7 +503,7 @@ function applyFilter(){
 
 /* ================== SUMMARY ================== */
 function renderSummary(days){
-  const closedDays = days.filter(d=>d.total>0 || d.status==='closed' || d.status==='open');
+  const closedDays = days.filter(d=>d.total>0);
   const totals = closedDays.map(d=>d.total);
   const sum = totals.reduce((a,b)=>a+b,0);
   const avg = totals.length ? Math.round(sum/totals.length) : 0;
@@ -621,7 +621,7 @@ function renderVisitorsChart(days){
 
 /* ================== TABLE ================== */
 function renderTable(days){
-  allFilteredDays = [...days].filter(d=> !(d.status==='open' && d.total===0)).reverse();
+  allFilteredDays = [...days].filter(d=>d.total>0).reverse();
   const countEl = document.getElementById('histCount');
   if(countEl) countEl.textContent = allFilteredDays.length + ' culte' + (allFilteredDays.length>1?'s':'') + ' enregistré' + (allFilteredDays.length>1?'s':'');
   renderCards(allFilteredDays);
@@ -895,7 +895,7 @@ function showSection(name){
 
 /* ================== HIGHLIGHTS ================== */
 function renderHighlights(days){
-  const closed = days.filter(d=>d.total>0||d.status==='closed'||d.status==='open');
+  const closed = days.filter(d=>d.total>0);
   if(closed.length===0){ document.getElementById('highlightsGrid').innerHTML=''; return; }
   const totals = closed.map(d=>d.total);
   const last = closed[closed.length-1];
