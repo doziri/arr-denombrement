@@ -486,15 +486,22 @@ function checkSessionStatus(){
     const data = snap.val();
     const statusEl = document.getElementById('sessionStatus');
     const btn = document.getElementById('actionBtn');
-    if(data && data.status === 'open'){
+
+    if(data && data.status === 'closed'){
+      // Session clôturée : bloquer l'accès
+      statusEl.innerHTML = `✅ Le dénombrement de ce jour est <span class="status-pill closed">CLÔTURÉ</span>.`;
+      btn.textContent = "Dénombrement terminé pour aujourd'hui";
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+      btn.onclick = null; // Désactiver le bouton
+    } else if(data && data.status === 'open'){
       statusEl.innerHTML = `Dénombrement <span class="status-pill open">EN COURS</span> — rejoins le comptage.`;
       btn.textContent = "Rejoindre le dénombrement";
-    } else if(data && data.status === 'closed'){
-      statusEl.innerHTML = `Le dénombrement de ce jour est <span class="status-pill closed">CLÔTURÉ</span>.`;
-      btn.textContent = "Démarrer un nouveau dénombrement";
+      btn.onclick = handleMainAction;
     } else {
       statusEl.innerHTML = `Aucun dénombrement démarré aujourd'hui.`;
-      btn.textContent = "▶ Commencer le dénombrement de la journée";
+      btn.textContent = "▶ Commencer le dénombrement";
+      btn.onclick = handleMainAction;
     }
   });
 }
@@ -582,13 +589,15 @@ function listenCounts(){
 
   // Écouter les changements de statut — ignorer la valeur initiale
   let statusInitialized = false;
-  db.ref(`${eglisePath()}/days/${sessionDateKey}/status`).on("value", snap=>{
+  const statusRef = db.ref(`${eglisePath()}/days/${sessionDateKey}/status`);
+  const statusCallback = statusRef.on("value", snap=>{
     if(!statusInitialized){ statusInitialized = true; return; }
     if(snap.val() === 'closed' && document.getElementById('app').style.display!=='none'){
       alert("Le dénombrement de cette journée a été clôturé par un autre poste.");
       location.reload();
     }
   });
+  window._statusRef = statusRef; // Garder la référence pour pouvoir désactiver
 }
 
 function updateGrandTotal(){
@@ -791,6 +800,9 @@ function doEndSession(){
     total: total
   };
   if(photoBase64) updateData.photo = photoBase64;
+
+  // Désactiver le listener de statut avant de clôturer pour éviter le faux message
+  if(window._statusRef) window._statusRef.off();
 
   db.ref(`${eglisePath()}/days/${sessionDateKey}`).update(updateData);
 
