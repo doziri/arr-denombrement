@@ -598,8 +598,13 @@ function addEglise(){
 
 function deleteEglise(id){
   const e = eglises[id];
-  if(!confirm(`Supprimer l'église "${e.nom}" ?\nLes données de cette église seront supprimées.`)) return;
-  db.ref(ROOT+'/eglises/'+id+'/days').remove();
+  if(!e) return;
+  if(!confirm(`Supprimer l'église "${e.nom}" ?\nToutes ses données de dénombrement seront également supprimées.`)) return;
+  // Supprimer le nœud complet de l'église (inclut ses days)
+  db.ref(ROOT+'/eglises/'+id).remove().then(function(){
+    // Le listener .on('value') de loadEglises rafraîchit automatiquement
+    // la liste, le filtre et les données
+  });
 }
 
 function loadAllDays(){
