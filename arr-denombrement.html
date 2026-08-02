@@ -197,13 +197,27 @@
 <!-- SETUP SCREEN -->
 <div id="setupScreen">
   <div class="box">
-    <img id="setupLogo" src="" alt="Logo ARR" style="width:80px; height:80px; object-fit:contain; border-radius:12px; background:#fff; padding:6px; margin-bottom:10px;">
+    <img id="setupLogo" src="" alt="Logo ARR" style="width:80px;height:80px;object-fit:contain;border-radius:12px;background:#fff;padding:6px;margin-bottom:10px;">
     <h2>ARR - Dénombrement</h2>
     <div class="date-display" id="todayDate"></div>
-    <p>Identifie ton poste d'accueil avant de commencer.</p>
-    <input id="postName" placeholder="Ex: Porte principale - Jean" style="margin-bottom:14px;">
-    <div id="sessionStatus" style="margin-bottom:14px; font-size:.85rem; color:var(--muted);">Vérification...</div>
-    <button class="btn success" id="actionBtn" onclick="handleMainAction()" style="width:100%;" class="btn gold">Patienter...</button>
+
+    <!-- ÉTAPE 1 : Code église -->
+    <div id="stepCode">
+      <p>Saisir le code de votre église pour commencer.</p>
+      <input id="egliseCode" placeholder="Code église (ex: ARR-ABJ)" style="margin-bottom:8px;text-align:center;letter-spacing:2px;font-weight:700;text-transform:uppercase;" onkeydown="if(event.key==='Enter')validateEgliseCode()">
+      <div id="egliseError" style="color:var(--red);font-size:.8rem;min-height:1.2em;margin-bottom:8px;"></div>
+      <button onclick="validateEgliseCode()" class="btn gold" style="width:100%;padding:13px;">Valider le code</button>
+    </div>
+
+    <!-- ÉTAPE 2 : Nom du poste -->
+    <div id="stepAgent" style="display:none;">
+      <div id="egliseBadge" style="display:inline-block;padding:6px 18px;border-radius:20px;background:rgba(139,0,0,.1);border:1px solid rgba(139,0,0,.2);color:var(--bordeaux);font-weight:700;font-size:.9rem;margin-bottom:16px;">🏛️ Église</div>
+      <p>Identifie ton poste d'accueil.</p>
+      <input id="postName" placeholder="Ex: Porte principale - Jean" style="margin-bottom:14px;">
+      <div id="sessionStatus" style="margin-bottom:14px;font-size:.85rem;color:var(--muted);">Vérification...</div>
+      <button id="actionBtn" onclick="handleMainAction()" style="width:100%;" class="btn gold">Patienter...</button>
+      <button onclick="resetEgliseCode()" style="width:100%;margin-top:8px;background:none;border:none;color:var(--muted);font-size:.78rem;cursor:pointer;text-decoration:underline;padding:4px;">↩ Changer de code église</button>
+    </div>
   </div>
 </div>
 
