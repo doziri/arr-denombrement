@@ -580,7 +580,10 @@ function listenCounts(){
     updateGrandTotal();
   });
 
+  // Écouter les changements de statut — ignorer la valeur initiale
+  let statusInitialized = false;
   db.ref(`${eglisePath()}/days/${sessionDateKey}/status`).on("value", snap=>{
+    if(!statusInitialized){ statusInitialized = true; return; }
     if(snap.val() === 'closed' && document.getElementById('app').style.display!=='none'){
       alert("Le dénombrement de cette journée a été clôturé par un autre poste.");
       location.reload();
