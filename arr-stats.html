@@ -849,9 +849,9 @@ function filterHistory(){
   renderCards(filtered);
 }
 
-function toggleCard(dateKey){
-  const body = document.getElementById('cbody-'+dateKey);
-  const arrow = document.getElementById('carr-'+dateKey);
+function toggleCard(cardId){
+  const body = document.getElementById('cbody-'+cardId);
+  const arrow = document.getElementById('carr-'+cardId);
   if(!body) return;
   const open = body.style.display !== 'none';
   body.style.display = open ? 'none' : 'block';
@@ -905,7 +905,7 @@ function renderCards(days){
       : '';
 
     const photoBlock = d.photo
-      ? '<img src="'+d.photo+'" data-date="'+d.date+'" onclick="openPhoto(this.dataset.date)" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:12px;cursor:pointer;border:1px solid rgba(212,175,55,.2);">'
+      ? '<img src="'+d.photo+'" data-date="'+d.date+'" data-egliseid="'+d.egliseId+'" onclick="openPhoto(this.dataset.date)" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:12px;cursor:pointer;border:1px solid rgba(212,175,55,.2);">'
       : '';
 
     const previewInfo = [
@@ -926,26 +926,32 @@ function renderCards(days){
           '<div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">présents</div>'+
         '</div>'+
         '<div style="font-size:.72rem;color:var(--muted);text-align:right;flex:1;min-width:100px;">'+previewInfo+'</div>'+
-        '<div id="carr-'+d.date+'" style="color:var(--muted);font-size:.9rem;flex-shrink:0;">▼</div>'+
+        '<div id="carr-'+cardId+'" style="color:var(--muted);font-size:.9rem;flex-shrink:0;">▼</div>'+
       '</div>'+
-      '<div id="cbody-'+d.date+'" style="display:none;padding:14px 16px;">'+
+      '<div id="cbody-'+cardId+'" style="display:none;padding:14px 16px;">'+
         '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">'+pills+'</div>'+
         inviteRow+
         photoBlock+
         infoGrid+
         obsBlock+
         '<div style="display:flex;gap:8px;justify-content:flex-end;">'+
-          '<button data-date="'+d.date+'" onclick="openEditDay(this.dataset.date)" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#5c0000;border:none;padding:8px 16px;border-radius:10px;font-size:.8rem;font-weight:700;cursor:pointer;">✏️ Modifier</button>'+
-          '<button data-date="'+d.date+'" onclick="deleteDay(this.dataset.date)" style="background:linear-gradient(135deg,#7b0000,#c0392b);color:#fff;border:none;padding:8px 16px;border-radius:10px;font-size:.8rem;font-weight:700;cursor:pointer;">🗑 Supprimer</button>'+
+          '<button data-cardid="'+cardId+'" onclick="openEditDay(this.dataset.cardid)" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#5c0000;border:none;padding:8px 16px;border-radius:10px;font-size:.8rem;font-weight:700;cursor:pointer;">✏️ Modifier</button>'+
+          '<button data-cardid="'+cardId+'" onclick="deleteDay(this.dataset.cardid)" style="background:linear-gradient(135deg,#7b0000,#c0392b);color:#fff;border:none;padding:8px 16px;border-radius:10px;font-size:.8rem;font-weight:700;cursor:pointer;">🗑 Supprimer</button>'+
         '</div>'+
       '</div>'+
     '</div>';
   }).join('');
 }
 
-function deleteDay(dateKey){
-  if(!confirm(`Supprimer définitivement le dénombrement du ${fmtDate(dateKey)} ?\n\nCette action est irréversible.`)) return;
-  db.ref(`${ROOT}/days/${dateKey}`).remove();
+function deleteDay(cardId){
+  let day = allDays.find(d=>(d.egliseId+'-'+d.date)===cardId);
+  if(!day) day = allDays.find(d=>d.date===cardId);
+  if(!day) return;
+  if(!confirm(`Supprimer définitivement le dénombrement du ${fmtDate(day.date)} ?\n\nCette action est irréversible.`)) return;
+  const delPath = day.egliseId
+    ? `${ROOT}/eglises/${day.egliseId}/days/${day.date}`
+    : `${ROOT}/days/${day.date}`;
+  db.ref(delPath).remove();
 }
 
 /* ================== PHOTO ================== */
@@ -1013,11 +1019,15 @@ function doResetAll(){
 
 /* ================== EDIT DAY ================== */
 let editingDateKey = null;
+let editingEgliseId = null;
 
-function openEditDay(dateKey){
-  editingDateKey = dateKey;
-  const day = allDays.find(d=>d.date===dateKey);
+function openEditDay(cardId){
+  // cardId = egliseId-date ou juste date pour rétrocompat
+  let day = allDays.find(d=>(d.egliseId+'-'+d.date)===cardId);
+  if(!day) day = allDays.find(d=>d.date===cardId); // fallback
   if(!day) return;
+  editingDateKey = cardId;
+  editingEgliseId = day.egliseId || null;
 
   document.getElementById('editDayDate').textContent = `📅 ${fmtDate(dateKey)} — ${day.label||''}`;
 
@@ -1067,7 +1077,10 @@ function saveEditDay(){
   });
   const total = Object.values(newCounts).reduce((a,b)=>a+b,0);
 
-  db.ref(`${ROOT}/days/${editingDateKey}`).update({
+  const savePath = editingEgliseId
+    ? `${ROOT}/eglises/${editingEgliseId}/days/${editingDateKey.split('-').slice(1).join('-')}`
+    : `${ROOT}/days/${editingDateKey}`;
+  db.ref(savePath).update({
     counts: newCounts,
     total: total,
     invitesH: parseInt(document.getElementById('edit-invitesH').value)||0,
