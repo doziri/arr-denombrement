@@ -213,6 +213,7 @@
       <img id="headerLogo" src="" alt="Logo ARR">
       <div>
         <h1 id="serviceTitle">Culte du —</h1>
+        <div class="sub" id="egliseLabel" style="font-weight:700;opacity:.9;"></div>
         <div class="sub" id="postLabel"></div>
       </div>
     </div>
@@ -336,9 +337,13 @@ auth.signInAnonymously().catch(e=>console.error(e));
 /* ================== ETAT ================== */
 const ROOT = "denombrement";
 let postName = "";
+let currentEglise = null; // {id, nom, code}
 let categories = {};
 let counts = {};
 let sessionDateKey = null;
+
+// Chemin Firebase selon l'église sélectionnée
+function eglisePath(){ return ROOT + '/eglises/' + (currentEglise ? currentEglise.id : 'default'); }
 
 const ICONS = {
   homme:          "data:image/jpeg;base64,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",
@@ -377,13 +382,49 @@ function todayLabel(){
 }
 
 /* ================== INIT ================== */
+/* ================== GESTION ÉGLISE ================== */
+function validateEgliseCode(){
+  const code = (document.getElementById('egliseCode').value||'').trim().toUpperCase();
+  const errEl = document.getElementById('egliseError');
+  if(!code){ errEl.textContent = 'Saisir un code.'; return; }
+
+  // Charger les églises depuis Firebase
+  db.ref(ROOT + '/eglises').once('value').then(snap=>{
+    const eglises = snap.val() || {};
+    let found = null;
+    Object.entries(eglises).forEach(([id, egl])=>{
+      if((egl.code||'').toUpperCase() === code) found = {...egl, id};
+    });
+
+    if(found){
+      currentEglise = found;
+      errEl.textContent = '';
+      document.getElementById('stepCode').style.display = 'none';
+      document.getElementById('stepAgent').style.display = 'block';
+      document.getElementById('egliseBadge').textContent = '🏛️ ' + found.nom;
+      sessionDateKey = todayKey();
+      checkSessionStatus();
+    } else {
+      errEl.textContent = 'Code incorrect. Vérifiez le code de votre église.';
+    }
+  });
+}
+
+function resetEgliseCode(){
+  currentEglise = null;
+  document.getElementById('stepCode').style.display = 'block';
+  document.getElementById('stepAgent').style.display = 'none';
+  document.getElementById('egliseCode').value = '';
+  document.getElementById('egliseError').textContent = '';
+}
+
 window.onload = ()=>{
   document.getElementById('todayDate').textContent = todayLabel();
   document.getElementById('setupLogo').src = LOGO_DATA;
   document.getElementById('headerLogo').src = LOGO_DATA;
-  sessionDateKey = todayKey();
+  // Initialiser les catégories (partagées entre toutes les églises)
   ensureCategoriesInit();
-  checkSessionStatus();
+  // L'église sera sélectionnée via le code — checkSessionStatus() appelé après validation
 };
 
 let currentTab = 'culte'; // onglet actif
@@ -426,7 +467,7 @@ function ensureCategoriesInit(){
 }
 
 function checkSessionStatus(){
-  const ref = db.ref(`${ROOT}/days/${sessionDateKey}`);
+  const ref = db.ref(`${eglisePath()}/days/${sessionDateKey}`);
   ref.once("value").then(snap=>{
     const data = snap.val();
     const statusEl = document.getElementById('sessionStatus');
@@ -448,7 +489,7 @@ function handleMainAction(){
   postName = document.getElementById('postName').value.trim();
   if(!postName){ alert("Merci d'indiquer le nom du poste / agent."); return; }
 
-  const ref = db.ref(`${ROOT}/days/${sessionDateKey}`);
+  const ref = db.ref(`${eglisePath()}/days/${sessionDateKey}`);
   ref.once("value").then(snap=>{
     const data = snap.val();
     if(!data || data.status !== 'open'){
@@ -457,6 +498,8 @@ function handleMainAction(){
       ref.set({
         date: sessionDateKey,
         label: "Culte du " + new Date().toLocaleDateString('fr-FR'),
+        eglise: currentEglise ? currentEglise.nom : '',
+        egliseId: currentEglise ? currentEglise.id : '',
         status: "open",
         startedAt: Date.now(),
         startedBy: postName,
@@ -470,6 +513,7 @@ function handleMainAction(){
 
 function enterCountingScreen(){
   document.getElementById('postLabel').textContent = "Poste : " + postName;
+  document.getElementById('egliseLabel').textContent = "🏛️ " + (currentEglise ? currentEglise.nom : '');
   document.getElementById('setupScreen').style.display='none';
   document.getElementById('app').style.display='flex';
 
@@ -477,7 +521,7 @@ function enterCountingScreen(){
     document.getElementById('connStatus').classList.toggle('online', snap.val()===true);
   });
 
-  db.ref(`${ROOT}/days/${sessionDateKey}/label`).on("value", snap=>{
+  db.ref(`${eglisePath()}/days/${sessionDateKey}/label`).on("value", snap=>{
     document.getElementById('serviceTitle').textContent = snap.val() || "Culte du jour";
   });
 
@@ -512,7 +556,7 @@ function renderCategories(){
 
 /* ================== COMPTAGE ================== */
 function listenCounts(){
-  const ref = db.ref(`${ROOT}/days/${sessionDateKey}/counts`);
+  const ref = db.ref(`${eglisePath()}/days/${sessionDateKey}/counts`);
   ref.on("value", snap=>{
     counts = snap.val() || {};
     Object.keys(categories).forEach(id=>{
@@ -522,7 +566,7 @@ function listenCounts(){
     updateGrandTotal();
   });
 
-  db.ref(`${ROOT}/days/${sessionDateKey}/status`).on("value", snap=>{
+  db.ref(`${eglisePath()}/days/${sessionDateKey}/status`).on("value", snap=>{
     if(snap.val() === 'closed' && document.getElementById('app').style.display!=='none'){
       alert("Le dénombrement de cette journée a été clôturé par un autre poste.");
       location.reload();
@@ -546,9 +590,9 @@ function updateGrandTotal(){
 }
 
 function increment(catId){
-  const ref = db.ref(`${ROOT}/days/${sessionDateKey}/counts/${catId}`);
+  const ref = db.ref(`${eglisePath()}/days/${sessionDateKey}/counts/${catId}`);
   ref.transaction(v => (v||0)+1);
-  db.ref(`${ROOT}/days/${sessionDateKey}/logs`).push({cat: catId, action:"+1", post: postName, ts: Date.now()});
+  db.ref(`${eglisePath()}/days/${sessionDateKey}/logs`).push({cat: catId, action:"+1", post: postName, ts: Date.now()});
   showToast("+1");
   if(navigator.vibrate) navigator.vibrate(40);
   // Animation compteur
@@ -560,9 +604,9 @@ function increment(catId){
 }
 
 function decrement(catId){
-  const ref = db.ref(`${ROOT}/days/${sessionDateKey}/counts/${catId}`);
+  const ref = db.ref(`${eglisePath()}/days/${sessionDateKey}/counts/${catId}`);
   ref.transaction(v => Math.max((v||0)-1, 0));
-  db.ref(`${ROOT}/days/${sessionDateKey}/logs`).push({cat: catId, action:"-1", post: postName, ts: Date.now()});
+  db.ref(`${eglisePath()}/days/${sessionDateKey}/logs`).push({cat: catId, action:"-1", post: postName, ts: Date.now()});
   showToast("-1");
 }
 
@@ -583,13 +627,13 @@ function showToast(msg){
 
 /* ================== INVITÉS ================== */
 function changeInvite(field, delta){
-  const ref = db.ref(`${ROOT}/days/${sessionDateKey}/${field}`);
+  const ref = db.ref(`${eglisePath()}/days/${sessionDateKey}/${field}`);
   ref.transaction(v => Math.max((v||0)+delta, 0));
 }
 
 function listenInvites(){
   ['invitesH','invitesF'].forEach(field=>{
-    db.ref(`${ROOT}/days/${sessionDateKey}/${field}`).on("value", snap=>{
+    db.ref(`${eglisePath()}/days/${sessionDateKey}/${field}`).on("value", snap=>{
       const val = snap.val() || 0;
       const el = document.getElementById(field+'-display');
       if(el) el.textContent = val;
@@ -615,9 +659,9 @@ function setEditValue(v){
 function saveEdit(){
   let val = parseInt(document.getElementById('editValue').value);
   if(isNaN(val) || val < 0) val = 0;
-  const ref = db.ref(`${ROOT}/days/${sessionDateKey}/counts/${editingCatId}`);
+  const ref = db.ref(`${eglisePath()}/days/${sessionDateKey}/counts/${editingCatId}`);
   ref.set(val);
-  db.ref(`${ROOT}/days/${sessionDateKey}/logs`).push({cat: editingCatId, action:"correction->"+val, post: postName, ts: Date.now()});
+  db.ref(`${eglisePath()}/days/${sessionDateKey}/logs`).push({cat: editingCatId, action:"correction->"+val, post: postName, ts: Date.now()});
   closeModal('editModal');
 }
 
@@ -691,7 +735,7 @@ function confirmEnd(){
   photoBase64 = null;
   removePhoto();
 
-  db.ref(`${ROOT}/days/${sessionDateKey}`).once("value").then(snap=>{
+  db.ref(`${eglisePath()}/days/${sessionDateKey}`).once("value").then(snap=>{
     const data = snap.val() || {};
     document.getElementById('observations').value = data.observations || '';
     document.getElementById('heureFin').value = data.heureFin || new Date().toTimeString().slice(0,5);
@@ -731,7 +775,7 @@ function doEndSession(){
   };
   if(photoBase64) updateData.photo = photoBase64;
 
-  db.ref(`${ROOT}/days/${sessionDateKey}`).update(updateData);
+  db.ref(`${eglisePath()}/days/${sessionDateKey}`).update(updateData);
 
   closeModal('endModal');
   alert("✅ Dénombrement clôturé. Merci !");
