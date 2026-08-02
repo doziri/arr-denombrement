@@ -560,21 +560,65 @@ function deleteEglise(id){
 }
 
 function loadAllDays(){
-  // Charger les jours de toutes les églises
   const egliseIds = Object.keys(eglises);
-  if(egliseIds.length===0){ allDays=[]; applyFilter(); return; }
-
-  let pending = egliseIds.length;
   const tempDays = [];
+  // Nombre de sources à lire : églises + 1 (anciennes données)
+  let pending = egliseIds.length + 1;
 
+  function done(){
+    pending--;
+    if(pending===0){
+      // Dédoublonner par date+eglise
+      const seen = new Set();
+      const unique = tempDays.filter(d=>{
+        const key = d.egliseId+'-'+d.date;
+        if(seen.has(key)) return false;
+        seen.add(key); return true;
+      });
+      allDays = unique.sort((a,b)=>a.date.localeCompare(b.date));
+      applyFilter();
+    }
+  }
+
+  // 1. Lire les anciennes données sous denombrement/days/ (migration)
+  db.ref(ROOT+'/days').once('value').then(snap=>{
+    snap.forEach(child=>{
+      const d = child.val();
+      const total = (d.total!==undefined&&d.total>0)?d.total:Object.values(d.counts||{}).reduce((a,b)=>a+(b||0),0);
+      if(total===0){ return; } // ignorer les jours vides
+      tempDays.push({
+        date: d.date||child.key,
+        status: d.status||'closed',
+        total,
+        counts: d.counts||{},
+        observations: d.observations||'',
+        label: d.label||d.date,
+        heureFin: d.heureFin||'',
+        dirigeant: d.dirigeant||'',
+        predicateur: d.predicateur||'',
+        themeMessage: d.themeMessage||'',
+        referencesBibliques: d.referencesBibliques||'',
+        invitesH: d.invitesH||0,
+        invitesF: d.invitesF||0,
+        photo: d.photo||null,
+        egliseId: 'abidjan',
+        egliseNom: 'Église Siège de Wassakara (ancien)',
+      });
+    });
+    done();
+  });
+
+  // 2. Lire les nouvelles données par église
+  if(egliseIds.length===0){ done(); return; }
   egliseIds.forEach(eid=>{
     db.ref(ROOT+'/eglises/'+eid+'/days').once('value').then(snap=>{
       snap.forEach(child=>{
         const d = child.val();
+        const total = (d.total!==undefined&&d.total>0)?d.total:Object.values(d.counts||{}).reduce((a,b)=>a+(b||0),0);
         tempDays.push({
           date: d.date||child.key,
           status: d.status||'closed',
-          total: (d.total!==undefined&&d.total>0)?d.total:Object.values(d.counts||{}).reduce((a,b)=>a+(b||0),0),
+          total,
           counts: d.counts||{},
           observations: d.observations||'',
           label: d.label||d.date,
@@ -590,11 +634,7 @@ function loadAllDays(){
           egliseNom: eglises[eid]?eglises[eid].nom:'',
         });
       });
-      pending--;
-      if(pending===0){
-        allDays = tempDays.sort((a,b)=>a.date.localeCompare(b.date));
-        applyFilter();
-      }
+      done();
     });
   });
 }
