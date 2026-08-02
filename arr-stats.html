@@ -914,8 +914,9 @@ function renderCards(days){
       d.predicateur ? '📖 '+d.predicateur : '',
     ].filter(Boolean).join('  ·  ');
 
-    return '<div style="background:linear-gradient(145deg,var(--card),var(--card2));border-radius:16px;margin-bottom:12px;border:1px solid rgba(212,175,55,.2);box-shadow:0 3px 12px rgba(0,0,0,.3);overflow:hidden;">'+
-      '<div data-date="'+d.date+'" onclick="toggleCard(this.dataset.date)" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;background:rgba(139,0,0,.2);border-bottom:1px solid rgba(212,175,55,.1);gap:12px;flex-wrap:wrap;">'+
+    const cardId = (d.egliseId||'legacy')+'-'+d.date;
+    return '<div style="background:#fff;border-radius:14px;margin-bottom:10px;border:1px solid rgba(139,0,0,.12);box-shadow:0 2px 8px rgba(139,0,0,.06);overflow:hidden;">'+
+      '<div data-cardid="'+cardId+'" onclick="toggleCard(this.dataset.cardid)" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;background:rgba(139,0,0,.2);border-bottom:1px solid rgba(212,175,55,.1);gap:12px;flex-wrap:wrap;">'+
         '<div style="flex:1;min-width:120px;">'+
           '<div style="font-size:1rem;font-weight:700;color:var(--gold2);">'+fmtDate(d.date)+'</div>'+
           '<div style="font-size:.72rem;color:var(--muted);margin-top:2px;">'+( d.label||'')+(d.egliseNom?' — '+d.egliseNom:'')+'</div>'+
