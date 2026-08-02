@@ -748,6 +748,9 @@ function applyFilter(){
   renderCategoryChart(filtered);
   renderVisitorsChart(filtered);
   renderTable(filtered);
+  // Rafraîchir Analyses si la section est ouverte
+  var anSec = document.getElementById('section-analyses');
+  if(anSec && anSec.classList.contains('active')) renderAnalyses();
 }
 
 /* ================== SUMMARY ================== */
