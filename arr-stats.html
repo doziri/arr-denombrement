@@ -370,6 +370,49 @@ div[id="editDayModal"],div[id="resetModal"]{position:fixed;inset:0;background:rg
   </div>
 </div>
 
+<!-- MODAL EDITION JOURNEE -->
+<div id="editDayModal">
+  <div class="modal-inner">
+    <h2>✏️ Modifier la journée</h2>
+    <p id="editDayDate" style="color:var(--muted);font-size:.85rem;margin-bottom:14px;font-weight:600;"></p>
+
+    <h3 style="font-size:.8rem;color:var(--bordeaux);margin:10px 0 8px;text-transform:uppercase;letter-spacing:.5px;">Comptages</h3>
+    <div id="editCounts" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+
+    <h3 style="font-size:.8rem;color:var(--bordeaux);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.5px;">Informations du culte</h3>
+    <label>Heure de fin</label>
+    <input type="time" id="editHeureFin">
+    <label>Dirigeant</label>
+    <input type="text" id="editDirigeant" placeholder="Nom du dirigeant">
+    <label>Prédicateur</label>
+    <input type="text" id="editPredicateur" placeholder="Nom du prédicateur">
+    <label>Thème du message</label>
+    <input type="text" id="editTheme" placeholder="Thème">
+    <label>Références bibliques</label>
+    <input type="text" id="editReferences" placeholder="Ex: Jean 3:16">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div><label>Invités Hommes</label><input type="number" min="0" id="editInvitesH"></div>
+      <div><label>Invités Femmes</label><input type="number" min="0" id="editInvitesF"></div>
+    </div>
+
+    <h3 style="font-size:.8rem;color:var(--bordeaux);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.5px;">Photo du culte</h3>
+    <div id="editPhotoPreview" style="margin-bottom:8px;"></div>
+    <label style="background:#fdf8f4;border:2px dashed rgba(139,0,0,.25);color:var(--bordeaux);padding:10px;border-radius:10px;cursor:pointer;font-size:.85rem;font-weight:600;display:block;text-align:center;margin-bottom:10px;">
+      📷 Choisir une photo
+      <input type="file" id="editPhotoInput" accept="image/*" style="display:none;" onchange="handleEditPhoto(this)">
+    </label>
+
+    <label>Observations</label>
+    <textarea id="editObservations" rows="3" placeholder="Observations..."></textarea>
+
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn-gold" style="flex:1;" onclick="saveEditDay()">✅ Enregistrer</button>
+      <button class="btn-grey" style="flex:1;background:#eee;color:#555;border:1px solid #ddd;padding:9px 16px;border-radius:10px;font-weight:700;cursor:pointer;font-size:.82rem;" onclick="document.getElementById('editDayModal').style.display='none'">Annuler</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- MODAL MODIFICATION JOURNÉE -->
 <div class="modal-overlay" id="editDayModal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;">
   <div style="background:#1e293b;border-radius:16px;padding:24px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;">
@@ -949,4 +992,438 @@ function renderCards(days){
 
   container.innerHTML = cards.join('');
 }
->
+
+/* ================== EXPORT PDF ================== */
+function exportPDF(){
+  document.getElementById('exportStatus').textContent = '⏳ Génération du PDF...';
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const period = document.getElementById('periodFilter').value;
+  let filtered = allDays;
+  if(period!=='all'){
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-parseInt(period));
+    filtered = allDays.filter(d=>d.date>=cutoff.toISOString().slice(0,10));
+  }
+  const closed = filtered.filter(d=>d.total>0);
+  const totals = closed.map(d=>d.total);
+  const avg = totals.length?Math.round(totals.reduce((a,b)=>a+b,0)/totals.length):0;
+  const max = totals.length?Math.max(...totals):0;
+
+  doc.setFillColor(139,0,0); doc.rect(0,0,210,30,'F');
+  doc.setTextColor(212,175,55); doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('ASSEMBLÉE ROYALE DES RACHETÉS',105,12,{align:'center'});
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  doc.text('Rapport de Dénombrement — '+new Date().toLocaleDateString('fr-FR'),105,22,{align:'center'});
+
+  doc.setTextColor(50,50,50); doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text('Résumé',14,40);
+  const resume = [
+    ['Cultes enregistrés', closed.length],
+    ['Affluence cumulée', totals.reduce((a,b)=>a+b,0)],
+    ['Moyenne par culte', avg],
+    ['Record de présence', max],
+  ];
+  doc.autoTable({startY:44,head:[['Indicateur','Valeur']],body:resume,
+    headStyles:{fillColor:[139,0,0],textColor:[212,175,55]},margin:{left:14},tableWidth:90});
+
+  const sortedCats = Object.entries(categories).sort((a,b)=>(a[1].order||0)-(b[1].order||0));
+  const headers = ['Date','Église','Total',...sortedCats.map(([,c])=>c.label),'Dirigeant','Prédicateur'];
+  const rows = [...closed].reverse().map(d=>[
+    fmtDate(d.date), d.egliseNom||'—', d.total,
+    ...sortedCats.map(([id])=>d.counts[id]||0),
+    d.dirigeant||'', d.predicateur||''
+  ]);
+  doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text('Détail',14,doc.lastAutoTable.finalY+14);
+  doc.autoTable({startY:doc.lastAutoTable.finalY+18,head:[headers],body:rows,
+    headStyles:{fillColor:[139,0,0],textColor:[212,175,55],fontSize:8},
+    bodyStyles:{fontSize:8},margin:{left:14}});
+
+  doc.save('ARR_Denombrement_'+new Date().toISOString().slice(0,10)+'.pdf');
+  document.getElementById('exportStatus').textContent = '✅ PDF téléchargé !';
+  setTimeout(()=>document.getElementById('exportStatus').textContent='',3000);
+}
+
+/* ================== EXPORT CSV ================== */
+function exportCSV(){
+  document.getElementById('exportStatus').textContent = '⏳ Génération du CSV...';
+  const period = document.getElementById('periodFilter').value;
+  let filtered = allDays;
+  if(period!=='all'){
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-parseInt(period));
+    filtered = allDays.filter(d=>d.date>=cutoff.toISOString().slice(0,10));
+  }
+  const closed = filtered.filter(d=>d.total>0);
+  const sortedCats = Object.entries(categories).sort((a,b)=>(a[1].order||0)-(b[1].order||0));
+  const headers = ['Date','Église','Total',...sortedCats.map(([,c])=>c.label),'Invités H','Invités F','Dirigeant','Prédicateur','Thème','Références','Heure fin','Observations'];
+  const rows = [...closed].reverse().map(d=>[
+    d.date, d.egliseNom||'', d.total,
+    ...sortedCats.map(([id])=>d.counts[id]||0),
+    d.invitesH||0, d.invitesF||0,
+    d.dirigeant||'', d.predicateur||'', d.themeMessage||'',
+    d.referencesBibliques||'', d.heureFin||'', d.observations||''
+  ]);
+  const csv = [headers,...rows].map(function(r){return r.map(function(v){var s=String(v).replace(/"/g,'""');return '"'+s+'"';}).join(',');}).join('\n');
+
+  const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='ARR_Denombrement_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  document.getElementById('exportStatus').textContent = '✅ CSV téléchargé !';
+  setTimeout(()=>document.getElementById('exportStatus').textContent='',3000);
+}
+
+/* ================== EXPORT EXCEL ================== */
+function exportExcel(){
+  document.getElementById('exportStatus').textContent = '⏳ Génération Excel...';
+  const period = document.getElementById('periodFilter').value;
+  let filtered = allDays;
+  if(period!=='all'){
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-parseInt(period));
+    filtered = allDays.filter(d=>d.date>=cutoff.toISOString().slice(0,10));
+  }
+  const closed = filtered.filter(d=>d.total>0);
+  const sortedCats = Object.entries(categories).sort((a,b)=>(a[1].order||0)-(b[1].order||0));
+  const headers = ['Date','Église','Total',...sortedCats.map(([,c])=>c.label),'Invités H','Invités F','Dirigeant','Prédicateur','Thème','Références','Heure fin','Observations'];
+  const rows = [...closed].reverse().map(d=>[
+    d.date, d.egliseNom||'', d.total,
+    ...sortedCats.map(([id])=>d.counts[id]||0),
+    d.invitesH||0, d.invitesF||0,
+    d.dirigeant||'', d.predicateur||'', d.themeMessage||'',
+    d.referencesBibliques||'', d.heureFin||'', d.observations||''
+  ]);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers,...rows]);
+  ws['!cols'] = headers.map(()=>({wch:14}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Dénombrements');
+  XLSX.writeFile(wb,'ARR_Denombrement_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  document.getElementById('exportStatus').textContent = '✅ Excel téléchargé !';
+  setTimeout(()=>document.getElementById('exportStatus').textContent='',3000);
+}
+
+/* ================== PARAMÈTRES - CODE ACCÈS ================== */
+function changeAccessCode(){
+  const old = document.getElementById('paramOldCode').value.trim();
+  const n1  = document.getElementById('paramNewCode').value.trim();
+  const n2  = document.getElementById('paramNewCode2').value.trim();
+  const err = document.getElementById('paramCodeError');
+
+  if(old !== ACCESS_CODE){ err.textContent='Code actuel incorrect.'; return; }
+  if(n1.length < 6){ err.textContent='Le nouveau code doit avoir au moins 6 caractères.'; return; }
+  if(n1 !== n2){ err.textContent='Les deux codes ne correspondent pas.'; return; }
+
+  db.ref(ROOT+'/settings/accessCode').set(n1).then(()=>{
+    ACCESS_CODE = n1;
+    err.style.color='#1a7a3c';
+    err.textContent='✅ Code mis à jour avec succès !';
+    document.getElementById('paramOldCode').value='';
+    document.getElementById('paramNewCode').value='';
+    document.getElementById('paramNewCode2').value='';
+    setTimeout(()=>{ err.textContent=''; err.style.color='#c0392b'; },3000);
+  });
+}
+
+/* ================== NAVIGATION ================== */
+function showSection(name){
+  document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  var sec = document.getElementById('section-'+name);
+  var btn = document.getElementById('nav-'+name);
+  if(sec) sec.classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(name==='analyses') renderAnalyses();
+}
+
+/* ================== HIGHLIGHTS ================== */
+function renderHighlights(days){
+  var grid = document.getElementById('highlightsGrid');
+  if(!grid) return;
+  var closed = days.filter(function(d){return d.total>0;});
+  if(closed.length===0){ grid.innerHTML=''; return; }
+  var totals = closed.map(function(d){return d.total;});
+  var last = closed[closed.length-1];
+  var prev = closed[closed.length-2];
+  var progression = (prev && prev.total>0) ? Math.round(((last.total-prev.total)/prev.total)*100) : null;
+  var progSign = progression===null ? '' : (progression>0 ? '+'+progression+'%' : progression+'%');
+  var progColor = progression===null ? '#7a5c3a' : (progression>=0 ? '#1a7a3c' : '#c0392b');
+  var best = closed.reduce(function(a,b){return a.total>b.total?a:b;});
+  var sum = totals.reduce(function(a,b){return a+b;},0);
+  var avg = Math.round(sum/totals.length);
+  var trendIcon = '➡️', trendLabel = 'Stable';
+  if(closed.length>=3){
+    if(closed[closed.length-1].total > closed[closed.length-3].total){ trendIcon='📈'; trendLabel='Hausse'; }
+    else if(closed[closed.length-1].total < closed[closed.length-3].total){ trendIcon='📉'; trendLabel='Baisse'; }
+  }
+
+  grid.innerHTML =
+    '<div class="stat-highlight"><div class="icon">📅</div><div><div class="val">'+last.total+'</div><div class="lbl">Dernier culte</div><div class="sub" style="color:'+progColor+';font-weight:700;">'+(progSign||'Premier culte')+'</div></div></div>'+
+    '<div class="stat-highlight"><div class="icon">🏆</div><div><div class="val">'+best.total+'</div><div class="lbl">Record</div><div class="sub">'+fmtDate(best.date)+'</div></div></div>'+
+    '<div class="stat-highlight"><div class="icon">📊</div><div><div class="val">'+avg+'</div><div class="lbl">Moyenne</div><div class="sub">Sur '+closed.length+' cultes</div></div></div>'+
+    '<div class="stat-highlight"><div class="icon">'+trendIcon+'</div><div><div class="val">'+trendLabel+'</div><div class="lbl">Tendance</div><div class="sub">3 derniers cultes</div></div></div>';
+}
+
+/* ================== ANALYSES ================== */
+var progressionChartI, pieChartI, tendanceChartI, compareChartI;
+
+function renderAnalyses(){
+  var period = document.getElementById('periodFilter').value;
+  var egliseF = (document.getElementById('egliseFilter')||{}).value || 'all';
+  var filtered = allDays;
+  if(period!=='all'){
+    var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-parseInt(period));
+    var cutoffKey = cutoff.toISOString().slice(0,10);
+    filtered = filtered.filter(function(d){return d.date>=cutoffKey;});
+  }
+  if(egliseF!=='all'){
+    filtered = filtered.filter(function(d){return d.egliseId===egliseF;});
+  }
+  var closed = filtered.filter(function(d){return d.total>0;});
+  if(closed.length===0) return;
+
+  var labels = closed.map(function(d){return fmtDate(d.date);});
+  var totals = closed.map(function(d){return d.total;});
+  var sortedCats = Object.entries(categories).sort(function(a,b){return (a[1].order||0)-(b[1].order||0);});
+
+  // 1. Progression %
+  var progressData = totals.map(function(t,i){
+    if(i===0) return 0;
+    return totals[i-1]>0 ? Math.round(((t-totals[i-1])/totals[i-1])*100) : 0;
+  });
+  var progressColors = progressData.map(function(v){return v>=0?'rgba(26,122,60,.7)':'rgba(192,57,43,.7)';});
+
+  if(progressionChartI) progressionChartI.destroy();
+  progressionChartI = new Chart(document.getElementById('progressionChart'),{
+    type:'bar',
+    data:{labels:labels,datasets:[{label:'Progression (%)',data:progressData,backgroundColor:progressColors,borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#2d1010'}}},
+      scales:{x:{ticks:{color:'#7a5c3a'},grid:{color:'rgba(139,0,0,.06)'}},
+              y:{ticks:{color:'#7a5c3a'},grid:{color:'rgba(139,0,0,.06)'}}}}
+  });
+
+  // 2. Camembert
+  var catTotals = sortedCats.map(function(entry){
+    return closed.reduce(function(a,d){return a+(d.counts[entry[0]]||0);},0);
+  });
+  var catLabels = sortedCats.map(function(entry){return entry[1].label;});
+  var grandTotal = catTotals.reduce(function(a,b){return a+b;},0);
+  var colors=['#8B0000','#DAA520','#1a7a3c','#b45309','#8e44ad','#2980b9'];
+
+  if(pieChartI) pieChartI.destroy();
+  pieChartI = new Chart(document.getElementById('pieChart'),{
+    type:'doughnut',
+    data:{labels:catLabels,datasets:[{data:catTotals,backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+  });
+
+  var legendeEl = document.getElementById('pieLegende');
+  if(legendeEl){
+    legendeEl.innerHTML = sortedCats.map(function(entry,i){
+      var pct = grandTotal>0?Math.round((catTotals[i]/grandTotal)*100):0;
+      return '<div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;border-radius:50%;background:'+(colors[i]||'#888')+';flex-shrink:0;"></div><span style="font-size:.8rem;color:#7a5c3a;">'+entry[1].label+'</span><span style="font-size:.85rem;font-weight:700;color:#8B0000;margin-left:auto;">'+pct+'%</span></div>';
+    }).join('');
+  }
+
+  // 3. Tendance
+  var movAvg = totals.map(function(t,i){
+    var s = totals.slice(Math.max(0,i-2),i+1);
+    return Math.round(s.reduce(function(a,b){return a+b;},0)/s.length);
+  });
+  if(tendanceChartI) tendanceChartI.destroy();
+  tendanceChartI = new Chart(document.getElementById('tendanceChart'),{
+    type:'line',
+    data:{labels:labels,datasets:[
+      {label:'Affluence réelle',data:totals,borderColor:'rgba(139,0,0,.3)',backgroundColor:'transparent',pointRadius:3,tension:.3},
+      {label:'Tendance (moy. 3)',data:movAvg,borderColor:'#8B0000',backgroundColor:'rgba(139,0,0,.06)',fill:true,pointRadius:0,tension:.4,borderWidth:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#2d1010'}}},
+      scales:{x:{ticks:{color:'#7a5c3a'},grid:{color:'rgba(139,0,0,.06)'}},
+              y:{ticks:{color:'#7a5c3a'},grid:{color:'rgba(139,0,0,.06)'},beginAtZero:true}}}
+  });
+
+  // 4. Culte vs École
+  var culteCats = Object.entries(categories).filter(function(e){return e[1].groupe==='culte';}).map(function(e){return e[0];});
+  var ecoleCats = Object.entries(categories).filter(function(e){return e[1].groupe==='ecole';}).map(function(e){return e[0];});
+  var dataCulte = closed.map(function(d){return culteCats.reduce(function(a,id){return a+(d.counts[id]||0);},0);});
+  var dataEcole = closed.map(function(d){return ecoleCats.reduce(function(a,id){return a+(d.counts[id]||0);},0);});
+
+  if(compareChartI) compareChartI.destroy();
+  compareChartI = new Chart(document.getElementById('compareChart'),{
+    type:'bar',
+    data:{labels:labels,datasets:[
+      {label:'⛪ Culte Principal',data:dataCulte,backgroundColor:'rgba(139,0,0,.75)',borderRadius:4},
+      {label:'📚 École du Dimanche',data:dataEcole,backgroundColor:'rgba(218,165,32,.75)',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#2d1010'}}},
+      scales:{x:{ticks:{color:'#7a5c3a'},grid:{color:'rgba(139,0,0,.06)'},stacked:true},
+              y:{ticks:{color:'#7a5c3a'},grid:{color:'rgba(139,0,0,.06)'},beginAtZero:true,stacked:true}}}
+  });
+
+  // Highlights analyses
+  var hEl = document.getElementById('analysesHighlights');
+  if(hEl){
+    var meilleur = closed.reduce(function(a,b){return a.total>b.total?a:b;});
+    var pire = closed.reduce(function(a,b){return a.total<b.total?a:b;});
+    var totalInvites = closed.reduce(function(a,d){return a+(d.invitesH||0)+(d.invitesF||0);},0);
+    var pctInv = grandTotal>0?Math.round((totalInvites/grandTotal)*100):0;
+    hEl.innerHTML =
+      '<div class="stat-highlight"><div class="icon">🏆</div><div><div class="val">'+meilleur.total+'</div><div class="lbl">Meilleure journée</div><div class="sub">'+fmtDate(meilleur.date)+'</div></div></div>'+
+      '<div class="stat-highlight"><div class="icon">📉</div><div><div class="val">'+pire.total+'</div><div class="lbl">Plus faible</div><div class="sub">'+fmtDate(pire.date)+'</div></div></div>'+
+      '<div class="stat-highlight"><div class="icon">👤</div><div><div class="val">'+totalInvites+'</div><div class="lbl">Total invités</div><div class="sub">'+pctInv+'% de l\'affluence</div></div></div>'+
+      '<div class="stat-highlight"><div class="icon">📊</div><div><div class="val">'+closed.length+'</div><div class="lbl">Cultes analysés</div><div class="sub">Période filtrée</div></div></div>';
+  }
+}
+
+/* ================== PHOTO PLEIN ÉCRAN ================== */
+function openPhoto(dateKey){
+  var day = allDays.find(function(d){return d.date===dateKey && d.photo;});
+  if(!day || !day.photo) return;
+  document.getElementById('photoModalImg').src = day.photo;
+  document.getElementById('photoModal').style.display = 'flex';
+}
+
+/* ================== EDITION JOURNEE ================== */
+var editingDateKey = null;
+var editingEgliseId = null;
+var editPhotoBase64 = null;
+
+function openEditDay(cardId){
+  var day = allDays.find(function(d){return (d.egliseId+'-'+d.date)===cardId;});
+  if(!day) day = allDays.find(function(d){return d.date===cardId;});
+  if(!day) return;
+  editingDateKey = day.date;
+  editingEgliseId = day.egliseId||null;
+  editPhotoBase64 = day.photo||null;
+
+  document.getElementById('editDayDate').textContent = '📅 '+fmtDate(day.date)+(day.egliseNom?' — '+day.egliseNom:'');
+
+  var sortedCats = Object.entries(categories).sort(function(a,b){return (a[1].order||0)-(b[1].order||0);});
+  var countsHtml = sortedCats.map(function(entry){
+    var id = entry[0], cat = entry[1];
+    return '<div style="margin-bottom:8px;"><label>'+cat.label+'</label><input type="number" min="0" id="edit-'+id+'" value="'+(day.counts[id]||0)+'"></div>';
+  }).join('');
+  document.getElementById('editCounts').innerHTML = countsHtml;
+
+  document.getElementById('editHeureFin').value = day.heureFin||'';
+  document.getElementById('editDirigeant').value = day.dirigeant||'';
+  document.getElementById('editPredicateur').value = day.predicateur||'';
+  document.getElementById('editTheme').value = day.themeMessage||'';
+  document.getElementById('editReferences').value = day.referencesBibliques||'';
+  document.getElementById('editInvitesH').value = day.invitesH||0;
+  document.getElementById('editInvitesF').value = day.invitesF||0;
+  document.getElementById('editObservations').value = day.observations||'';
+
+  var preview = document.getElementById('editPhotoPreview');
+  if(day.photo){
+    preview.innerHTML = '<img src="'+day.photo+'" style="width:100%;max-height:150px;object-fit:cover;border-radius:8px;margin-bottom:6px;"><button onclick="removeEditPhoto()" class="btn-red" style="width:100%;padding:6px;font-size:.75rem;">🗑 Supprimer la photo</button>';
+  } else {
+    preview.innerHTML = '';
+  }
+
+  document.getElementById('editDayModal').style.display = 'flex';
+}
+
+function handleEditPhoto(input){
+  var file = input.files && input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var canvas = document.createElement('canvas');
+      var maxW = 800;
+      var scale = Math.min(1, maxW/img.width);
+      canvas.width = img.width*scale;
+      canvas.height = img.height*scale;
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      editPhotoBase64 = canvas.toDataURL('image/jpeg',0.7);
+      document.getElementById('editPhotoPreview').innerHTML = '<img src="'+editPhotoBase64+'" style="width:100%;max-height:150px;object-fit:cover;border-radius:8px;margin-bottom:6px;"><button onclick="removeEditPhoto()" class="btn-red" style="width:100%;padding:6px;font-size:.75rem;">🗑 Supprimer la photo</button>';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeEditPhoto(){
+  editPhotoBase64 = null;
+  document.getElementById('editPhotoPreview').innerHTML = '';
+  var input = document.getElementById('editPhotoInput');
+  if(input) input.value = '';
+}
+
+function saveEditDay(){
+  var newCounts = {};
+  Object.keys(categories).forEach(function(id){
+    var el = document.getElementById('edit-'+id);
+    newCounts[id] = el ? (parseInt(el.value)||0) : 0;
+  });
+  var total = Object.values(newCounts).reduce(function(a,b){return a+b;},0);
+
+  var updateData = {
+    counts: newCounts,
+    total: total,
+    heureFin: document.getElementById('editHeureFin').value,
+    dirigeant: document.getElementById('editDirigeant').value.trim(),
+    predicateur: document.getElementById('editPredicateur').value.trim(),
+    themeMessage: document.getElementById('editTheme').value.trim(),
+    referencesBibliques: document.getElementById('editReferences').value.trim(),
+    invitesH: parseInt(document.getElementById('editInvitesH').value)||0,
+    invitesF: parseInt(document.getElementById('editInvitesF').value)||0,
+    observations: document.getElementById('editObservations').value.trim(),
+    photo: editPhotoBase64 || null
+  };
+
+  var savePath = editingEgliseId
+    ? ROOT+'/eglises/'+editingEgliseId+'/days/'+editingDateKey
+    : ROOT+'/days/'+editingDateKey;
+
+  db.ref(savePath).update(updateData).then(function(){
+    document.getElementById('editDayModal').style.display = 'none';
+    loadAllDays();
+  });
+}
+
+/* ================== SUPPRESSION JOURNEE ================== */
+function deleteDay(cardId){
+  var day = allDays.find(function(d){return (d.egliseId+'-'+d.date)===cardId;});
+  if(!day) day = allDays.find(function(d){return d.date===cardId;});
+  if(!day) return;
+  if(!confirm('Supprimer définitivement le dénombrement du '+fmtDate(day.date)+' ?\n\nCette action est irréversible.')) return;
+  var delPath = day.egliseId
+    ? ROOT+'/eglises/'+day.egliseId+'/days/'+day.date
+    : ROOT+'/days/'+day.date;
+  db.ref(delPath).remove().then(function(){
+    loadAllDays();
+  });
+}
+
+/* ================== ZONE ADMIN ================== */
+function confirmResetAll(){
+  document.getElementById('resetConfirmCode').value = '';
+  document.getElementById('resetError').textContent = '';
+  document.getElementById('resetModal').style.display = 'flex';
+}
+
+function doResetAll(){
+  var code = document.getElementById('resetConfirmCode').value.trim();
+  var errEl = document.getElementById('resetError');
+  if(code !== ACCESS_CODE){
+    errEl.textContent = 'Code incorrect.';
+    return;
+  }
+  // Supprimer les données legacy et de toutes les églises
+  db.ref(ROOT+'/days').remove();
+  var promises = Object.keys(eglises).map(function(eid){
+    return db.ref(ROOT+'/eglises/'+eid+'/days').remove();
+  });
+  Promise.all(promises).then(function(){
+    document.getElementById('resetModal').style.display = 'none';
+    alert('✅ Toutes les données ont été effacées.');
+    loadAllDays();
+  });
+}
+
+</script>
+</body>
+</html>
