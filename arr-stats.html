@@ -186,6 +186,10 @@ div[id="editDayModal"],div[id="resetModal"]{position:fixed;inset:0;background:rg
     <h2>Statistiques ARR</h2>
     <p>Accès réservé au pasteur et au responsable du dénombrement.</p>
     <input type="password" id="accessCode" placeholder="Code d'accès" maxlength="30">
+    <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;cursor:pointer;font-size:.85rem;color:var(--muted);">
+      <input type="checkbox" id="rememberMe" style="width:16px;height:16px;accent-color:#8B0000;cursor:pointer;">
+      Se souvenir de moi
+    </label>
     <button class="btn" onclick="checkAccess()">Accéder aux statistiques</button>
     <div class="error" id="loginError"></div>
   </div>
@@ -339,6 +343,12 @@ div[id="editDayModal"],div[id="resetModal"]{position:fixed;inset:0;background:rg
       </div>
     </div>
 
+    <div class="param-card">
+      <h3>🚪 Session</h3>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px;">Se déconnecter de cet appareil. Le code d'accès sera redemandé à la prochaine visite.</p>
+      <button class="btn-red" onclick="logout()">Se déconnecter</button>
+    </div>
+
     <div class="admin-zone">
       <h3>⚠️ Zone Admin</h3>
       <p>Suppression irréversible de toutes les données de dénombrement (tests inclus).</p>
@@ -490,7 +500,12 @@ let categories = {};
 function checkAccess(){
   const val = document.getElementById('accessCode').value.trim();
   if(val === ACCESS_CODE){
-    sessionStorage.setItem('arr_stats_access','1');
+    const remember = document.getElementById('rememberMe') && document.getElementById('rememberMe').checked;
+    if(remember){
+      localStorage.setItem('arr_stats_access','1'); // persiste après fermeture du navigateur
+    } else {
+      sessionStorage.setItem('arr_stats_access','1'); // session uniquement
+    }
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='block';
     auth.signInAnonymously().then(()=> initData());
@@ -507,7 +522,7 @@ window.onload = ()=>{
   db.ref && db.ref(ROOT+'/settings/accessCode').once('value').then(snap=>{
     if(snap.exists()) ACCESS_CODE = snap.val();
   });
-  if(sessionStorage.getItem('arr_stats_access')==='1'){
+  if(localStorage.getItem('arr_stats_access')==='1' || sessionStorage.getItem('arr_stats_access')==='1'){
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='block';
     auth.signInAnonymously().then(()=> initData());
@@ -1430,6 +1445,13 @@ function doResetAll(){
     alert('✅ Toutes les données ont été effacées.');
     loadAllDays();
   });
+}
+
+/* ================== DECONNEXION ================== */
+function logout(){
+  localStorage.removeItem('arr_stats_access');
+  sessionStorage.removeItem('arr_stats_access');
+  location.reload();
 }
 
 </script>
