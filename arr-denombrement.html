@@ -316,11 +316,11 @@
     <textarea id="observations" placeholder="Ex: Beaucoup de visiteurs, retard dû à la pluie, fête organisée après le culte..."></textarea>
     <label>📷 Photo du culte <span style="color:var(--muted); font-size:.75rem;">(optionnel)</span></label>
     <div id="photoPreview" style="display:none; margin-bottom:10px;">
-      <img id="photoImg" src="" alt="Photo du culte" style="width:100%; max-height:200px; object-fit:cover; border-radius:10px; border:2px solid #334155;">
+      <img id="photoImg" src="" alt="Photo du culte" style="width:100%; max-height:200px; object-fit:cover; border-radius:10px; border:2px solid rgba(139,0,0,.2);">
       <button onclick="removePhoto()" style="margin-top:6px; background:#ef4444; color:#fff; border:none; padding:6px 14px; border-radius:8px; font-size:.8rem; cursor:pointer;">🗑️ Supprimer la photo</button>
     </div>
     <div id="photoBtn" style="margin-bottom:14px;">
-      <label for="photoInput" style="display:inline-block; background:#334155; color:#f1f5f9; padding:10px 18px; border-radius:10px; cursor:pointer; font-size:.9rem; font-weight:600;">
+      <label for="photoInput" style="display:inline-block; background:linear-gradient(135deg,#8B0000,#b71c1c); color:#fff; padding:10px 18px; border-radius:10px; cursor:pointer; font-size:.9rem; font-weight:600;">
         📷 Choisir une photo depuis la galerie
       </label>
       <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handlePhoto(event)">
@@ -738,7 +738,7 @@ function confirmEnd(){
 
   // Section Culte Principal
   const hCulte = document.createElement('div');
-  hCulte.innerHTML = '<p style="color:#6366f1;font-weight:700;font-size:.8rem;text-transform:uppercase;padding:6px 0 2px;">⛪ Culte Principal</p>';
+  hCulte.innerHTML = '<p style="color:#8B0000;font-weight:700;font-size:.8rem;text-transform:uppercase;padding:6px 0 2px;">⛪ Culte Principal</p>';
   list.appendChild(hCulte);
   Object.entries(categories).filter(([,c])=>c.groupe==='culte').sort((a,b)=>(a[1].order||0)-(b[1].order||0)).forEach(([id,cat])=>{
     const c = counts[id]||0; total += c;
