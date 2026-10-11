@@ -384,7 +384,10 @@ div[id="editDayModal"],div[id="resetModal"]{position:fixed;inset:0;background:rg
 <div id="editDayModal">
   <div class="modal-inner">
     <h2>✏️ Modifier la journée</h2>
-    <p id="editDayDate" style="color:var(--muted);font-size:.85rem;margin-bottom:14px;font-weight:600;"></p>
+    <p id="editDayDate" style="color:var(--muted);font-size:.85rem;margin-bottom:10px;font-weight:600;"></p>
+    <label>📅 Date du culte</label>
+    <input type="date" id="editDate" style="margin-bottom:6px;">
+    <p style="font-size:.72rem;color:var(--muted);margin-bottom:12px;">Changez la date si le dénombrement a été saisi un autre jour que le culte.</p>
 
     <h3 style="font-size:.8rem;color:var(--bordeaux);margin:10px 0 8px;text-transform:uppercase;letter-spacing:.5px;">Comptages</h3>
     <div id="editCounts" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
@@ -1269,6 +1272,7 @@ function openEditDay(cardId){
   editingDateKey = day.date;
   editingEgliseId = day.egliseId||null;
   editPhotoBase64 = day.photo||null;
+  document.getElementById('editDate').value = day.date;
 
   document.getElementById('editDayDate').textContent = '📅 '+fmtDate(day.date)+(day.egliseNom?' — '+day.egliseNom:'');
 
@@ -1348,14 +1352,38 @@ function saveEditDay(){
     photo: editPhotoBase64 || null
   };
 
-  var savePath = editingEgliseId
-    ? ROOT+'/eglises/'+editingEgliseId+'/days/'+editingDateKey
-    : ROOT+'/days/'+editingDateKey;
+  var base = editingEgliseId ? ROOT+'/eglises/'+editingEgliseId+'/days/' : ROOT+'/days/';
+  var newDate = document.getElementById('editDate').value || editingDateKey;
+  var oldDate = editingDateKey;
 
-  db.ref(savePath).update(updateData).then(function(){
+  function done(){
     document.getElementById('editDayModal').style.display = 'none';
     loadAllDays();
-  });
+  }
+
+  if(newDate === oldDate){
+    db.ref(base+oldDate).update(updateData).then(done);
+    return;
+  }
+
+  db.ref(base+newDate).once('value').then(function(snap){
+    if(snap.exists()){
+      alert('Un dénombrement existe déjà à la date du '+fmtDate(newDate)+' pour cette église.\nChoisissez une autre date ou supprimez d\'abord cet enregistrement.');
+      return;
+    }
+    return db.ref(base+oldDate).once('value').then(function(oldSnap){
+      var full = oldSnap.val() || {};
+      Object.keys(updateData).forEach(function(k){ full[k] = updateData[k]; });
+      full.date = newDate;
+      if(full.label){
+        var p = newDate.split('-');
+        full.label = 'Culte du '+p[2]+'/'+p[1]+'/'+p[0];
+      }
+      return db.ref(base+newDate).set(full).then(function(){
+        return db.ref(base+oldDate).remove();
+      }).then(done);
+    });
+  }).catch(function(e){ alert('Erreur : '+e.message); });
 }
 
 /* ================== SUPPRESSION JOURNEE ================== */
